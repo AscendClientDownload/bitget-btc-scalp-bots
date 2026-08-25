@@ -36,6 +36,7 @@ class StrategyContext:
     in_position: bool
     entry_price: float | None = None
     entry_bar: int | None = None
+    capital: float | None = None  # notional about to be (or already) deployed; used by dollar-scalp stop/target sizing
 
     @property
     def row(self) -> pd.Series:

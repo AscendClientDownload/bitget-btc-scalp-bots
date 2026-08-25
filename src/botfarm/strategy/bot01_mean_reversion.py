@@ -29,6 +29,7 @@ from botfarm.indicators.volatility import atr as atr_ind
 from botfarm.indicators.volatility import bollinger_bands
 from botfarm.indicators.volume import volume_sma_ratio
 from botfarm.strategy.base import IndicatorSpec, Strategy, StrategyContext
+from botfarm.strategy.scalp_targets import dollar_scalp_levels
 
 
 @dataclass(frozen=True)
@@ -133,9 +134,13 @@ class Bot01MeanReversion(Strategy):
         return bool(row["close"] >= row["bb_middle"] or row["rsi"] >= p.rsi_exit)
 
     def stop_loss(self, ctx: StrategyContext) -> float:
-        atr_val = float(ctx.row["atr"])
-        return ctx.close - self.params.atr_stop_mult * atr_val
+        stop, _ = dollar_scalp_levels(
+            ctx.close, ctx.capital, self.params.atr_stop_mult, self.params.atr_target_mult
+        )
+        return stop
 
     def take_profit(self, ctx: StrategyContext) -> float:
-        atr_val = float(ctx.row["atr"])
-        return ctx.close + self.params.atr_target_mult * atr_val
+        _, target = dollar_scalp_levels(
+            ctx.close, ctx.capital, self.params.atr_stop_mult, self.params.atr_target_mult
+        )
+        return target

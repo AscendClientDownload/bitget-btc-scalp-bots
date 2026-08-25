@@ -12,6 +12,7 @@ from botfarm.catalog.schema import IndicatorRef, StrategySpec
 from botfarm.indicators import momentum, stats, trend, volatility, volume
 from botfarm.strategy.base import IndicatorSpec, Strategy, StrategyContext
 from botfarm.strategy.safe_eval import RuleEvalError, safe_eval
+from botfarm.strategy.scalp_targets import dollar_scalp_levels
 
 
 @dataclass(frozen=True)
@@ -142,7 +143,13 @@ class DeclarativeStrategy(Strategy):
             return False
 
     def stop_loss(self, ctx: StrategyContext) -> float:
-        return ctx.close - self.spec.stop_loss_atr_mult * float(ctx.row["_atr"])
+        stop, _ = dollar_scalp_levels(
+            ctx.close, ctx.capital, self.spec.stop_loss_atr_mult, self.spec.take_profit_atr_mult
+        )
+        return stop
 
     def take_profit(self, ctx: StrategyContext) -> float:
-        return ctx.close + self.spec.take_profit_atr_mult * float(ctx.row["_atr"])
+        _, target = dollar_scalp_levels(
+            ctx.close, ctx.capital, self.spec.stop_loss_atr_mult, self.spec.take_profit_atr_mult
+        )
+        return target

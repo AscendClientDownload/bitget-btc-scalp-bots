@@ -129,11 +129,11 @@ def run_backtest(
                 entry_fee = 0.0
 
         if not in_position:
-            ctx = StrategyContext(df=df, i=i, in_position=False)
+            notional = capital * position_fraction
+            ctx = StrategyContext(df=df, i=i, in_position=False, capital=notional)
             if strategy.entry_signal(ctx):
                 quote_price = ctx.close
                 fill_price = cost_model.fill_price(quote_price, "buy")
-                notional = capital * position_fraction
                 entry_fee = cost_model.fee(notional)
                 shares = (notional - entry_fee) / fill_price
 

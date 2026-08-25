@@ -91,6 +91,7 @@ def _process_tick(
                     "SELECT capital FROM strategy_state WHERE strategy_id=?", (strategy.id,)
                 ).fetchone()
                 capital = state_row["capital"] if state_row else DEFAULT_STARTING_CAPITAL
+                ctx.capital = capital
 
                 stop_price = strategy.stop_loss(ctx)
                 target_price = strategy.take_profit(ctx)
