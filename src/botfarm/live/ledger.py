@@ -13,6 +13,15 @@ _DEFAULT_DB_PATH = Path(__file__).resolve().parents[3] / "botfarm_ledger.db"
 # at a mounted Volume), the ledger would silently reset on every redeploy.
 DB_PATH = Path(os.environ["BOTFARM_DB_PATH"]) if os.environ.get("BOTFARM_DB_PATH") else _DEFAULT_DB_PATH
 
+# Diagnostic: printed once at import time so deploy logs show exactly what
+# path was resolved and whether BOTFARM_DB_PATH was actually read, rather
+# than a bare "unable to open database file" with no context.
+print(f"[ledger] BOTFARM_DB_PATH env = {os.environ.get('BOTFARM_DB_PATH')!r}", flush=True)
+print(f"[ledger] resolved DB_PATH = {DB_PATH}", flush=True)
+print(f"[ledger] DB_PATH.parent = {DB_PATH.parent}  exists={DB_PATH.parent.exists()}", flush=True)
+if DB_PATH.parent.exists():
+    print(f"[ledger] DB_PATH.parent writable = {os.access(DB_PATH.parent, os.W_OK)}", flush=True)
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS trades (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,7 +76,15 @@ CREATE INDEX IF NOT EXISTS idx_equity_strategy_ts ON equity_snapshots(strategy_i
 
 @contextmanager
 def connect(db_path: Path = DB_PATH):
-    conn = sqlite3.connect(db_path)
+    try:
+        conn = sqlite3.connect(db_path)
+    except sqlite3.OperationalError as e:
+        parent = Path(db_path).parent
+        raise sqlite3.OperationalError(
+            f"{e} -- path={db_path!r} parent={parent!r} "
+            f"parent_exists={parent.exists()} "
+            f"parent_writable={os.access(parent, os.W_OK) if parent.exists() else 'N/A (parent missing)'}"
+        ) from e
     conn.row_factory = sqlite3.Row
     try:
         yield conn
