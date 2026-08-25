@@ -48,6 +48,13 @@
   .bot-box .status.in-position { background: #1e3a5f; color: #7cc4ff; }
   .bot-box .pnl-line { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
   .filter-note { color: #7cc4ff; font-size: 12px; margin-bottom: 10px; cursor: pointer; }
+  .leaderboard-group { margin-bottom: 18px; }
+  .leaderboard-group:last-child { margin-bottom: 0; }
+  .leaderboard-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .leaderboard-label .count { color: #6b7078; font-weight: 500; text-transform: none; letter-spacing: normal; }
+  .leaderboard-label.profit { color: #4ade80; }
+  .leaderboard-label.loss { color: #f87171; }
+  .leaderboard-label.idle { color: #9aa0a6; }
   .more-note { color: #6b7078; font-size: 12px; margin-top: 8px; }
   .updated { color: #6b7078; font-size: 11px; margin-top: 8px; }
 </style>
@@ -60,7 +67,7 @@
 
 <section>
   <h2>Bots</h2>
-  <div class="grid" id="bots"></div>
+  <div id="bots"></div>
 </section>
 
 <div class="filter-note" id="filter-note" style="display:none"></div>
@@ -137,6 +144,28 @@ function renderSummary(s) {
   ).join("");
 }
 
+function botCardHtml(b, inPos, unrealized) {
+  const pnlClass = b.pnl_dollars > 0 ? "pos" : (b.pnl_dollars < 0 ? "neg" : "");
+  const isSelected = selectedBot === b.strategy_id;
+  const liveLine = inPos && unrealized !== null
+    ? `<div class="row"><span>Open trade (unrealized)</span><span class="${unrealized >= 0 ? 'pos' : 'neg'}" style="color:${unrealized >= 0 ? '#4ade80' : '#f87171'}">${fmtSignedMoney(unrealized)}</span></div>`
+    : "";
+  return `<div class="bot-box ${isSelected ? 'selected' : ''}" data-bot="${b.strategy_id}">
+      <div class="name">${b.strategy_id}</div>
+      <div class="status ${inPos ? 'in-position' : 'idle'}">${inPos ? 'In position' : 'Idle — watching'}</div>
+      <div class="pnl-line value ${pnlClass}">${fmtSignedMoney(b.pnl_dollars)} <span style="font-size:13px;font-weight:500;color:#9aa0a6">(${b.pnl_pct >= 0 ? '+' : ''}${b.pnl_pct.toFixed(2)}%)</span></div>
+      <div class="card-rows">
+        ${liveLine}
+        <div class="row"><span>Symbol</span><span>${b.symbol}</span></div>
+        <div class="row"><span>Timeframe</span><span>${b.timeframe}</span></div>
+        <div class="row"><span>Started with</span><span>${fmtMoney(b.starting_capital)}</span></div>
+        <div class="row"><span>Now</span><span>${fmtMoney(b.capital)}</span></div>
+        <div class="row"><span>Last checked</span><span title="${fmtTime(b.updated_at_ms)}">${fmtAgo(b.updated_at_ms)}</span></div>
+        <div class="row"><span></span><span style="color:#6b7078;font-size:11px">checks every ${b.timeframe} — up to ~5m gaps are normal</span></div>
+      </div>
+    </div>`;
+}
+
 function renderBots(botStates, openTrades) {
   const el = document.getElementById("bots");
   if (!botStates.length) {
@@ -146,24 +175,33 @@ function renderBots(botStates, openTrades) {
   const openByBot = {};
   openTrades.forEach(t => { openByBot[t.strategy_id] = t; });
 
-  el.innerHTML = botStates.map(b => {
+  // Leaderboard: bots currently in a profitable open trade, then bots
+  // currently in a losing open trade, then bots idle/watching with no
+  // position. Ranked by unrealized P&L within the two "in a trade" groups.
+  const profit = [], loss = [], idle = [];
+  botStates.forEach(b => {
     const inPos = openByBot[b.strategy_id];
-    const pnlClass = b.pnl_dollars > 0 ? "pos" : (b.pnl_dollars < 0 ? "neg" : "");
-    const isSelected = selectedBot === b.strategy_id;
-    return `<div class="bot-box ${isSelected ? 'selected' : ''}" data-bot="${b.strategy_id}">
-      <div class="name">${b.strategy_id}</div>
-      <div class="status ${inPos ? 'in-position' : 'idle'}">${inPos ? 'In position' : 'Idle — watching'}</div>
-      <div class="pnl-line value ${pnlClass}">${fmtSignedMoney(b.pnl_dollars)} <span style="font-size:13px;font-weight:500;color:#9aa0a6">(${b.pnl_pct >= 0 ? '+' : ''}${b.pnl_pct.toFixed(2)}%)</span></div>
-      <div class="card-rows">
-        <div class="row"><span>Symbol</span><span>${b.symbol}</span></div>
-        <div class="row"><span>Timeframe</span><span>${b.timeframe}</span></div>
-        <div class="row"><span>Started with</span><span>${fmtMoney(b.starting_capital)}</span></div>
-        <div class="row"><span>Now</span><span>${fmtMoney(b.capital)}</span></div>
-        <div class="row"><span>Last checked</span><span title="${fmtTime(b.updated_at_ms)}">${fmtAgo(b.updated_at_ms)}</span></div>
-        <div class="row"><span></span><span style="color:#6b7078;font-size:11px">checks every ${b.timeframe} — up to ~5m gaps are normal</span></div>
-      </div>
+    if (!inPos) { idle.push({ b, inPos: null, unrealized: null }); return; }
+    const raw = inPos.unrealized_pnl_dollars;
+    const unrealized = (raw === null || raw === undefined) ? 0 : raw;
+    (unrealized >= 0 ? profit : loss).push({ b, inPos, unrealized });
+  });
+  profit.sort((x, y) => y.unrealized - x.unrealized);
+  loss.sort((x, y) => y.unrealized - x.unrealized); // closest to breakeven first
+  idle.sort((x, y) => x.b.strategy_id.localeCompare(y.b.strategy_id));
+
+  const group = (label, cls, items) => {
+    if (!items.length) return "";
+    return `<div class="leaderboard-group">
+      <div class="leaderboard-label ${cls}">${label} <span class="count">(${items.length})</span></div>
+      <div class="grid">${items.map(({b, inPos, unrealized}) => botCardHtml(b, inPos, unrealized)).join("")}</div>
     </div>`;
-  }).join("");
+  };
+
+  el.innerHTML =
+    group("📈 In profit", "profit", profit) +
+    group("📉 In a loss", "loss", loss) +
+    group("👀 Watching", "idle", idle);
 
   el.querySelectorAll(".bot-box").forEach(box => {
     box.addEventListener("click", () => {
@@ -177,7 +215,11 @@ function renderBots(botStates, openTrades) {
 function renderOpen(trades) {
   const el = document.getElementById("open-trades");
   if (!trades.length) { el.innerHTML = '<div class="empty">No open positions right now.</div>'; return; }
-  el.innerHTML = trades.map(t => {
+  const sorted = [...trades].sort((a, b) => {
+    const av = a.unrealized_pnl_dollars ?? 0, bv = b.unrealized_pnl_dollars ?? 0;
+    return bv - av; // profit first, biggest loss last
+  });
+  el.innerHTML = sorted.map(t => {
     const hasLive = t.unrealized_pnl_dollars !== null && t.unrealized_pnl_dollars !== undefined;
     const pnlClass = hasLive ? (t.unrealized_pnl_dollars >= 0 ? "pos" : "neg") : "";
     return `<div class="card open">
