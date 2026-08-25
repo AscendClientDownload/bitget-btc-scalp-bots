@@ -18,8 +18,20 @@ DB_PATH = Path(os.environ["BOTFARM_DB_PATH"]) if os.environ.get("BOTFARM_DB_PATH
 # than a bare "unable to open database file" with no context.
 print(f"[ledger] BOTFARM_DB_PATH env = {os.environ.get('BOTFARM_DB_PATH')!r}", flush=True)
 print(f"[ledger] resolved DB_PATH = {DB_PATH}", flush=True)
-print(f"[ledger] DB_PATH.parent = {DB_PATH.parent}  exists={DB_PATH.parent.exists()}", flush=True)
-if DB_PATH.parent.exists():
+
+if not DB_PATH.parent.exists():
+    # A real mounted Volume's directory already exists before the app starts.
+    # If it doesn't, whatever was attached in Railway isn't actually mounted
+    # here -- creating it ourselves lets the app run instead of crash-looping,
+    # but this data will NOT survive a redeploy until that's fixed for real.
+    print(
+        f"[ledger] WARNING: {DB_PATH.parent} did not exist (expected volume mount "
+        "missing/misconfigured) -- creating it so the app can start, but data here "
+        "will be LOST on next redeploy until the volume is actually attached.",
+        flush=True,
+    )
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+else:
     print(f"[ledger] DB_PATH.parent writable = {os.access(DB_PATH.parent, os.W_OK)}", flush=True)
 
 SCHEMA = """
