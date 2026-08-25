@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from botfarm.indicators.momentum import rsi, roc, williams_r
-from botfarm.indicators.trend import ema, macd, sma
+from botfarm.indicators.trend import adx, ema, macd, sma
 from botfarm.indicators.volatility import atr, bollinger_bands, true_range
 from botfarm.indicators.volume import obv, volume_sma_ratio
 
@@ -107,6 +107,26 @@ def test_williams_r_bounds():
     close = high  # close at the high -> %R should be 0 (top of range)
     result = williams_r(high, low, close, period=14)
     assert result.iloc[-1] == pytest.approx(0.0)
+
+
+def test_adx_high_for_strong_uptrend_low_for_chop():
+    n = 60
+    # Strong, steady uptrend: ADX should end up clearly elevated and +DI > -DI.
+    trend_close = pd.Series(np.linspace(100, 160, n))
+    trend_high = trend_close + 0.3
+    trend_low = trend_close - 0.3
+    adx_trend, plus_di_trend, minus_di_trend = adx(trend_high, trend_low, trend_close, period=14)
+    assert adx_trend.iloc[-1] > 25
+    assert plus_di_trend.iloc[-1] > minus_di_trend.iloc[-1]
+
+    # Flat/choppy oscillation around a fixed level: ADX should stay low.
+    rng = np.random.default_rng(7)
+    chop_close = pd.Series(100 + rng.normal(0, 0.3, n))
+    chop_high = chop_close + 0.4
+    chop_low = chop_close - 0.4
+    adx_chop, _, _ = adx(chop_high, chop_low, chop_close, period=14)
+    assert adx_chop.iloc[-1] < 20
+    assert adx_chop.iloc[-1] < adx_trend.iloc[-1]
 
 
 def test_atr_positive_and_defined_after_warmup():

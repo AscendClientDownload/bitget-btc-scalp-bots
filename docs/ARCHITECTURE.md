@@ -65,6 +65,21 @@ accident.
 
 ## Project status / build order
 
-1. ✅ Repo scaffold, `data/`, `indicators/`, `strategy/` (bot #1), `backtest/` — bot #1 built and backtested against real Bitget history.
-2. ✅ `live/` (ledger, paper broker, exchange client, 24/7 runner, dashboard) — built, dashboard smoke-tested against real backtest trade data.
-3. ⏸ **Paused at the user's request**: the 100-strategy catalog (`catalog/`) and `adaptive/` walk-forward re-tuning. Before building the other 99 strategies, existing open-source bots (Freqtrade, Hummingbot, Jesse) were researched for indicator/strategy ideas and dashboard design patterns — see the research summary folded into this doc and the risk disclaimer. Resume when asked.
+1. ✅ Repo scaffold, `data/`, `indicators/`, `strategy/`, `backtest/` — built and backtested against real Bitget history.
+2. ✅ `live/` (ledger, paper broker, exchange client, 24/7 runner, dashboard) — built. Dashboard shows bot/trade cards; ledger starts empty and only fills from the live runner (an earlier smoke test pre-seeded it with backtest data, which was confusing and has been reverted — see `scripts/seed_ledger_from_backtest.py`).
+3. ✅ **Bot #1 strategy search, concluded**: 15 variants across two strategy
+   families (trend-following, mean-reversion — see `scripts/research_bot01_variants.py`
+   and `scripts/research_mean_reversion_variants.py`) were backtested on a
+   chronological train/holdout split of a full year of real Bitget 5min
+   BTCUSDT data. None showed validated positive expectancy net of fees;
+   expectancy consistently clustered around -0.12% to -0.20%/trade, close to
+   the ~0.2-0.3% round-trip cost floor. Decision with the user: stop
+   searching for a positive-expectancy variant (further attempts risk
+   data-snooping — picking a "winner" out of many comparisons against the
+   same data isn't evidence of real edge). Bot #1 (`bot01_mean_reversion.py`)
+   ships as a reference implementation of the framework, not a profitable
+   strategy.
+4. ⏸ **Paused at the user's request**: the 100-strategy catalog (`catalog/`)
+   and `adaptive/` walk-forward re-tuning. Resume when asked — but note the
+   strategy-search finding above: an adaptive re-tuner built on top of these
+   same indicator families would face the same fee-floor problem, not fix it.

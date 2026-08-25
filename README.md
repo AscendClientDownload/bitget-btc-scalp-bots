@@ -7,35 +7,63 @@ Bitget's public market-data API, with a local live dashboard.
 **Read [docs/RISK_DISCLAIMER.md](docs/RISK_DISCLAIMER.md) before treating anything here as
 investment advice.** Short-timeframe (1-5 minute) BTC scalping is heavily
 affected by exchange fees, slippage, and market noise. A positive backtest
-number is not a promise of future profit.
+number is not a promise of future profit — and, per the research below, a
+real edge from plain OHLCV technical indicators at this timeframe may not
+exist at all once fees are included.
+
+## Honest headline result
+
+Bot #1 was iterated across **15 rigorously tested variants, two entirely
+different strategy families**, each validated on genuinely out-of-sample
+holdout data with Bitget's real fees (0.2% round trip):
+
+1. **Trend-following** (EMA cross + RSI + volume, optionally +EMA100 trend
+   filter, +ADX filter): 5 variants. See `reports/bot01_ema_rsi_atr/`.
+2. **Mean-reversion** (Bollinger Band + RSI oversold, optionally +ADX,
+   +volume-spike, +rejection-candle confluence): 10 variants. See
+   `reports/bot01_mean_reversion/` and `scripts/research_mean_reversion_variants.py`.
+
+**None showed a validated positive edge.** Expectancy per trade consistently
+clustered around -0.12% to -0.20% — right around the transaction cost floor —
+regardless of indicator logic. Stacking many confirming filters at once
+("maximum confluence") didn't fix it either; it just multiplied several
+independently-rare conditions together until the strategy stopped producing
+any trades at all (0 trades across a full year). That's a real, converging
+finding: **at 5-minute BTCUSDT, Bitget's fees are a bigger factor than which
+indicators you use.**
+
+Decision (with the user): stop searching for a positive-expectancy variant
+via more indicator permutations — every additional variant tested against
+the same year of data raises the risk that any eventual "winner" is luck
+(data-snooping), not real edge. Bot #1 ships as a working **reference
+implementation** of the framework, not a profitable strategy.
 
 ## What's here right now
 
-- **Bot #1** (`src/botfarm/strategy/bot01_ema_rsi_atr.py`): EMA(9/21) trend
-  cross + RSI momentum filter + volume confirmation, ATR-based stop/target,
-  5-minute BTCUSDT, long-only. Fully backtested against a real year of
-  Bitget history — see `reports/bot01_ema_rsi_atr/backtest_report.md`.
-  **Honest result: over the last 12 months this configuration showed
-  negative expectancy** (1046 trades, 20.2% win rate, profit factor 0.123,
-  -0.20% average trade after fees/slippage) — it is not a working bot as
-  currently tuned. That's the framework doing its job: reporting a real
-  backtest result rather than a flattering fabricated one. Treat bot #1 as a
-  reference implementation of the plumbing (strategy interface, cost model,
-  event-driven engine, reporting) to iterate on, not as something to trade.
-- A hand-written indicator library, an event-driven backtest engine with a
-  realistic Bitget fee/slippage model, and performance metrics (win rate,
-  Sharpe/Sortino, max drawdown, profit factor, etc.).
-- A **paper-trading** 24/7 runner (`scripts/run_paper_trading.py`) and a
-  local **dashboard** (`scripts/run_dashboard.py`, http://127.0.0.1:5000)
-  showing live open/closed trades and summary stats.
+- **Bot #1** (`src/botfarm/strategy/bot01_mean_reversion.py`, class
+  `Bot01MeanReversion`): Bollinger Band + RSI oversold entry with an
+  ADX<=20 "don't fight a strong trend" filter, ATR-based stop, 5-minute
+  BTCUSDT, long-only. Backtested against a real year of Bitget history —
+  see `reports/bot01_mean_reversion/backtest_report.md` (170 trades, 34.7%
+  win rate, profit factor 0.38, still net negative — reported as-is).
+  An earlier trend-following version (`bot01_ema_rsi_atr.py`) is kept in the
+  repo as a documented, tested dead end — see the research above.
+- A hand-written indicator library (including ADX/DMI), an event-driven
+  backtest engine with a realistic Bitget fee/slippage model, and
+  performance metrics (win rate, Sharpe/Sortino, max drawdown, profit
+  factor, etc.).
+- A **paper-trading** 24/7 runner (`scripts/run_paper_trading.py`, $1,000
+  starting capital) and a local **dashboard** (`scripts/run_dashboard.py`,
+  http://127.0.0.1:5000) showing live open/closed trades as cards, plus
+  summary stats. The ledger starts genuinely empty — it is not pre-seeded
+  with backtest data (that caused real confusion once during development;
+  see `scripts/seed_ledger_from_backtest.py`'s docstring).
 
 ## What's paused
 
 The other 99 strategies (a declarative catalog) and the daily walk-forward
-adaptive re-tuning module are paused at the user's request in favor of first
-researching existing open-source trading bots (Freqtrade, Hummingbot, Jesse)
-for strategy and dashboard ideas, and building the trades dashboard. See
-`docs/ARCHITECTURE.md` for current status.
+adaptive re-tuning module are paused. See `docs/ARCHITECTURE.md` for current
+status.
 
 ## Setup
 
@@ -53,9 +81,16 @@ pytest -q
 python scripts/run_backtest_bot01.py --days 365
 ```
 
-Writes `reports/bot01_ema_rsi_atr/backtest_report.md`, `equity_curve.png`,
+Writes `reports/bot01_mean_reversion/backtest_report.md`, `equity_curve.png`,
 and `trades.csv`. Candle data is cached in `data/raw/` so re-runs don't
 re-hit the Bitget API for dates already fetched.
+
+To see the full variant-comparison research behind the current defaults:
+
+```powershell
+python scripts/research_bot01_variants.py            # trend-following, 5 variants
+python scripts/research_mean_reversion_variants.py   # mean-reversion, 10 variants
+```
 
 ## Run paper trading + dashboard
 

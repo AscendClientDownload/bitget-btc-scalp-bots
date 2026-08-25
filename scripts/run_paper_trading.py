@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from botfarm.live.runner import run_forever
-from botfarm.strategy.bot01_ema_rsi_atr import Bot01EmaRsiAtr
+from botfarm.strategy.bot01_mean_reversion import Bot01MeanReversion
 
 if __name__ == "__main__":
-    run_forever(Bot01EmaRsiAtr())
+    run_forever(Bot01MeanReversion())

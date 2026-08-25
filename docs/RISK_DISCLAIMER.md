@@ -12,6 +12,18 @@ a rigorous backtest of one real strategy against real historical data, a
 transparent cost model, and a re-tuning process with guardrails against the
 most obvious failure modes. That's it.
 
+## This isn't theoretical — we tested it
+
+15 variants of bot #1, across two different strategy families (trend-following
+and mean-reversion, see `docs/ARCHITECTURE.md`), were backtested on a real
+year of Bitget 5-minute BTCUSDT data with a chronological train/holdout
+split. **None showed a validated positive edge.** Expectancy per trade
+consistently landed around -0.12% to -0.20%, right around the transaction
+cost floor, regardless of which indicators were used. Stacking many
+confirming filters at once didn't help either — it just narrowed entries
+down to zero trades in a full year. This is the concrete evidence behind
+every general statement in this document, not just a theoretical warning.
+
 ## Why 1-5 minute BTC scalping is especially hard
 
 - **Fees dominate small moves.** Bitget spot taker fees are 0.1% per side —

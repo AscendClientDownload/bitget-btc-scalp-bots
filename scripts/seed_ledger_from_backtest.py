@@ -1,6 +1,11 @@
-"""Dev helper: load reports/bot01_ema_rsi_atr/trades.csv into the paper-trading
-ledger so the dashboard has something real to display before the live runner
-has been running long enough to accumulate its own trades."""
+"""Dev helper: load backtest trades.csv into the paper-trading ledger.
+
+WARNING: only run this for a deliberate demo/screenshot. Doing this without
+telling anyone looking at the dashboard makes it look like the live runner
+has already made hundreds of real (simulated) trades when it hasn't -- that
+exact confusion happened once already during development. Prefer just
+letting scripts/run_paper_trading.py accumulate real trades over time.
+"""
 from __future__ import annotations
 
 import sys
@@ -12,7 +17,7 @@ import pandas as pd
 
 from botfarm.live import ledger
 
-TRADES_CSV = Path(__file__).resolve().parents[1] / "reports" / "bot01_ema_rsi_atr" / "trades.csv"
+TRADES_CSV = Path(__file__).resolve().parents[1] / "reports" / "bot01_mean_reversion" / "trades.csv"
 
 
 def main() -> None:
