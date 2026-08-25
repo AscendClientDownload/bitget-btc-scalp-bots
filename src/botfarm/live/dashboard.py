@@ -139,9 +139,20 @@ def main() -> None:
     port = int(os.environ.get("PORT", os.environ.get("DASHBOARD_PORT", 5000)))
     host = "0.0.0.0" if on_paas else "127.0.0.1"
 
+    print(f"[dashboard] on_paas={on_paas} host={host} port={port}", flush=True)
+
     if on_paas:
+        print(f"[dashboard] importing waitress...", flush=True)
         from waitress import serve
-        serve(app, host=host, port=port)
+        print(f"[dashboard] calling waitress.serve(host={host!r}, port={port})...", flush=True)
+        try:
+            serve(app, host=host, port=port)
+        except Exception:
+            import traceback
+            print("[dashboard] waitress.serve() raised:", flush=True)
+            traceback.print_exc()
+            raise
+        print("[dashboard] waitress.serve() returned (unexpected -- it should block forever)", flush=True)
     else:
         app.run(host=host, port=port, debug=False)
 
