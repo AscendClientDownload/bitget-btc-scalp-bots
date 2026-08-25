@@ -133,8 +133,17 @@ def api_strategies():
 
 def main() -> None:
     ledger.init_db()
-    port = int(os.environ.get("DASHBOARD_PORT", 5000))
-    app.run(host="127.0.0.1", port=port, debug=False)
+    # Railway (and most PaaS hosts) inject PORT and expect a bind on 0.0.0.0;
+    # local dev has no PORT set, so it stays on localhost-only by default.
+    on_paas = "PORT" in os.environ
+    port = int(os.environ.get("PORT", os.environ.get("DASHBOARD_PORT", 5000)))
+    host = "0.0.0.0" if on_paas else "127.0.0.1"
+
+    if on_paas:
+        from waitress import serve
+        serve(app, host=host, port=port)
+    else:
+        app.run(host=host, port=port, debug=False)
 
 
 if __name__ == "__main__":

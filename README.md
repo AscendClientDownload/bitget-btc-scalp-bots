@@ -107,7 +107,7 @@ Both are **simulated** — `live/exchange_client.py` only reads public market
 data, and `live/paper_broker.py` simulates fills using the same cost model
 as the backtester. No exchange account credentials are used or needed.
 
-### Running it persistently (survives closing the terminal)
+### Running it persistently, option A: your own PC (survives closing the terminal)
 
 `scripts/service/run_paper_trading_forever.ps1` and `run_dashboard_forever.ps1`
 wrap each process in an auto-restart loop and log to `logs/`. A launcher at
@@ -115,12 +115,35 @@ wrap each process in an auto-restart loop and log to `logs/`. A launcher at
 runs both hidden at every Windows logon — real Task Scheduler registration
 was tried first but failed with Access Denied in this environment, so the
 Startup folder is the actual mechanism in use. This still requires the PC to
-be on and you logged in; it is not the same as cloud hosting. See
-`docs/ARCHITECTURE.md` for what was evaluated (Vercel/Cloud Run don't work —
-no persistent background process; Render/Fly.io/Railway free tiers are gone
-or unsuited to an always-on worker; GCP `e2-micro` / Oracle Ampere A1 are the
-two real permanent-free VM options but need you to create the cloud account
-yourself first).
+be on and you logged in; it is not the same as cloud hosting.
+
+### Running it persistently, option B: Railway (no PC dependency)
+
+The repo is set up to deploy as a single Railway service:
+`scripts/railway_start.py` (wired up via `Procfile`) runs the dashboard in
+the foreground — bound to Railway's injected `$PORT` on `0.0.0.0` via
+`waitress`, a production WSGI server, instead of Flask's dev server — and
+supervises the paper-trading bot as an auto-restarting background process in
+the same container, so they share the container's filesystem for the SQLite
+ledger. Set the `BOTFARM_DB_PATH` environment variable to a path under a
+mounted Railway **Volume** (e.g. `/data/botfarm_ledger.db`) so the ledger
+survives redeploys — without it, the ledger resets every time the service
+redeploys, since container-local disk is ephemeral. See
+`docs/DEPLOY_RAILWAY.md` for the exact click-through steps.
+
+Railway's GitHub sign-in needs no credit card, and its free trial grants a
+one-time $5 usage credit with no card required to start — but that credit is
+one-time, not renewing monthly, so it will eventually run out (how fast
+depends on actual usage) and continuing past it means adding a card for the
+paid Hobby plan (~$5/mo). Railway services don't sleep on inactivity by
+default (that's an opt-in "Serverless" setting, off unless you turn it on),
+so this doesn't have Render free tier's cold-start problem.
+
+Other options evaluated and why they don't fit (see `docs/ARCHITECTURE.md`):
+Vercel/Cloud Run don't support a persistent background process at all;
+Render's free tier sleeps after 15min idle; Fly.io's free allowance is
+essentially gone; GCP `e2-micro` / Oracle Ampere A1 are genuinely permanent
+free VMs but require a credit card for identity verification during signup.
 
 ## Data source
 

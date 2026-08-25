@@ -103,3 +103,18 @@ accident.
      genuinely-permanent-free VM tiers as of Aug 2026, but both require the
      user to create the cloud account/VM themselves (identity + billing
      verification only they can do) before any remote setup can happen.
+6. ✅ **Railway deployment** (chosen over GCP/Oracle specifically to avoid a
+   credit card requirement, at the cost of not being free forever): the repo
+   now deploys as a single Railway service. `scripts/railway_start.py`
+   (wired via `Procfile`) runs the dashboard in the foreground bound to
+   Railway's `$PORT`/`0.0.0.0` via `waitress` (a production WSGI server —
+   Flask's dev server stays in use for local/no-`PORT` runs only), and
+   supervises the bot as an auto-restarting background process in the same
+   container so both share the container filesystem. `ledger.py`'s `DB_PATH`
+   now respects a `BOTFARM_DB_PATH` env var, meant to point at a Railway
+   Volume mount so the ledger survives redeploys (container disk is
+   otherwise ephemeral). See `docs/DEPLOY_RAILWAY.md` for the click-through
+   steps (only the account/project creation needs the user — everything
+   else is already wired up in code). Railway's free trial is a one-time $5
+   credit, not a renewing free tier, and services don't sleep on inactivity
+   unless the opt-in "Serverless" setting is turned on (leave it off).

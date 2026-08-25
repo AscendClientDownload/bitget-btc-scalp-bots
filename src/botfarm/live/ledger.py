@@ -3,11 +3,15 @@ live strategy state. Read by the dashboard and the live runner; written by
 the live runner and the daily retune job."""
 from __future__ import annotations
 
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parents[3] / "botfarm_ledger.db"
+_DEFAULT_DB_PATH = Path(__file__).resolve().parents[3] / "botfarm_ledger.db"
+# On a host with an ephemeral filesystem (e.g. Railway without this pointed
+# at a mounted Volume), the ledger would silently reset on every redeploy.
+DB_PATH = Path(os.environ["BOTFARM_DB_PATH"]) if os.environ.get("BOTFARM_DB_PATH") else _DEFAULT_DB_PATH
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS trades (
