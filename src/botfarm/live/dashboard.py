@@ -132,7 +132,9 @@ def api_strategies():
 
 
 def main() -> None:
+    print("[dashboard] main() started", flush=True)
     ledger.init_db()
+    print("[dashboard] ledger.init_db() returned", flush=True)
     # Railway (and most PaaS hosts) inject PORT and expect a bind on 0.0.0.0;
     # local dev has no PORT set, so it stays on localhost-only by default.
     on_paas = "PORT" in os.environ
