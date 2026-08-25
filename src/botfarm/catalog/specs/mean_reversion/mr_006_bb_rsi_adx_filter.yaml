@@ -1,0 +1,29 @@
+id: mr_006_bb_rsi_adx_filter
+name: BB+RSI with Range-Bound Filter
+category: mean_reversion
+timeframe: 5min
+indicators:
+- name: bollinger_bands
+  alias: bb
+  params:
+    period: 20
+    num_std: 2.0
+- name: rsi
+  alias: rsi_14
+  params:
+    period: 14
+- name: adx
+  alias: adx
+  params:
+    period: 14
+entry:
+  side: long
+  rule: close <= bb_lower and rsi_14 <= 30 and adx <= 20
+exit:
+  rule: close >= bb_middle or rsi_14 >= 55
+atr_period: 14
+stop_loss_atr_mult: 1.5
+take_profit_atr_mult: 2.5
+max_holding_bars: 24
+notes: Classic BB+RSI entry gated by ADX<=20 to avoid mean-reverting into a strong
+  trend.

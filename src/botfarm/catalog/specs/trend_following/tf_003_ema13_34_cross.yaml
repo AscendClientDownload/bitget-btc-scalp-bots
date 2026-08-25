@@ -1,0 +1,28 @@
+id: tf_003_ema13_34_cross
+name: EMA 13/34 Cross
+category: trend_following
+timeframe: 5min
+indicators:
+- name: ema
+  alias: ema_fast
+  params:
+    period: 13
+- name: ema
+  alias: ema_slow
+  params:
+    period: 34
+- name: cross_above
+  alias: ema_cross_up
+  params:
+    a: ema_fast
+    b: ema_slow
+entry:
+  side: long
+  rule: ema_cross_up
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.2
+take_profit_atr_mult: 1.8
+max_holding_bars: 24
+notes: Fibonacci-spaced EMA pair, slower than the 9/21 baseline.

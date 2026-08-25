@@ -1,0 +1,28 @@
+id: tf_007_sma5_20_cross
+name: SMA 5/20 Cross (fast)
+category: trend_following
+timeframe: 5min
+indicators:
+- name: sma
+  alias: sma_fast
+  params:
+    period: 5
+- name: sma
+  alias: sma_slow
+  params:
+    period: 20
+- name: cross_above
+  alias: sma_cross_up
+  params:
+    a: sma_fast
+    b: sma_slow
+entry:
+  side: long
+  rule: sma_cross_up
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 0.9
+take_profit_atr_mult: 1.4
+max_holding_bars: 24
+notes: Fast SMA pair for quick trend catches.

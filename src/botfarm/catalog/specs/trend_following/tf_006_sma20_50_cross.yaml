@@ -1,0 +1,28 @@
+id: tf_006_sma20_50_cross
+name: SMA 20/50 Cross
+category: trend_following
+timeframe: 5min
+indicators:
+- name: sma
+  alias: sma_fast
+  params:
+    period: 20
+- name: sma
+  alias: sma_slow
+  params:
+    period: 50
+- name: cross_above
+  alias: sma_cross_up
+  params:
+    a: sma_fast
+    b: sma_slow
+entry:
+  side: long
+  rule: sma_cross_up
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.3
+take_profit_atr_mult: 2.0
+max_holding_bars: 24
+notes: Slower SMA pair, a classic "golden cross" style signal at scalp scale.

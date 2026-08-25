@@ -1,0 +1,16 @@
+id: bo_005_atr_range_breakout
+name: ATR Range Breakout
+category: breakout_volatility
+timeframe: 5min
+indicators: []
+entry:
+  side: long
+  rule: close > prev_close + 1.5 * _atr
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.5
+take_profit_atr_mult: 2.5
+max_holding_bars: 24
+notes: A single bar moving more than 1.5x ATR from the prior close -- a raw volatility-expansion
+  breakout.

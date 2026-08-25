@@ -1,0 +1,21 @@
+id: cp_007_engulfing_volume
+name: Bullish Engulfing + Volume
+category: candlestick_pattern
+timeframe: 5min
+indicators:
+- name: volume_sma_ratio
+  alias: vol_ratio
+  params:
+    period: 20
+entry:
+  side: long
+  rule: close > open and prev_close < prev_open and close > prev_open and open < prev_close
+    and vol_ratio > 1.3
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.3
+take_profit_atr_mult: 2.0
+max_holding_bars: 24
+notes: Engulfing pattern that also requires above-average volume on the engulfing
+  bar.

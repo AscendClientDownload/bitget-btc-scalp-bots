@@ -1,0 +1,36 @@
+id: mi_002_ema_rsi_adx
+name: EMA Cross + RSI + ADX
+category: multi_indicator_confluence
+timeframe: 5min
+indicators:
+- name: ema
+  alias: ema_fast
+  params:
+    period: 9
+- name: ema
+  alias: ema_slow
+  params:
+    period: 21
+- name: cross_above
+  alias: ema_cross_up
+  params:
+    a: ema_fast
+    b: ema_slow
+- name: rsi
+  alias: rsi_14
+  params:
+    period: 14
+- name: adx
+  alias: adx
+  params:
+    period: 14
+entry:
+  side: long
+  rule: ema_cross_up and rsi_14 >= 50 and rsi_14 <= 70 and adx >= 20
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.2
+take_profit_atr_mult: 1.8
+max_holding_bars: 24
+notes: Trend cross + momentum band + trend-strength filter.

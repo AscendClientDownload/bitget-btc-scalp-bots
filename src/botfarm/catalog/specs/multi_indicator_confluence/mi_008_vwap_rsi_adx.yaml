@@ -1,0 +1,27 @@
+id: mi_008_vwap_rsi_adx
+name: VWAP + RSI + ADX Confluence
+category: multi_indicator_confluence
+timeframe: 5min
+indicators:
+- name: rolling_vwap
+  alias: vwap
+  params:
+    period: 20
+- name: rsi
+  alias: rsi_14
+  params:
+    period: 14
+- name: adx
+  alias: adx
+  params:
+    period: 14
+entry:
+  side: long
+  rule: close > vwap and rsi_14 > 50 and adx >= 15
+exit:
+  rule: close < vwap
+atr_period: 14
+stop_loss_atr_mult: 1.3
+take_profit_atr_mult: 2.0
+max_holding_bars: 24
+notes: VWAP position, momentum, and a mild trend-strength filter combined.

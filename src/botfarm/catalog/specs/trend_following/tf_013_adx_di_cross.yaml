@@ -1,0 +1,24 @@
+id: tf_013_adx_di_cross
+name: +DI/-DI Directional Cross
+category: trend_following
+timeframe: 5min
+indicators:
+- name: adx
+  alias: adx
+  params:
+    period: 14
+- name: cross_above
+  alias: di_cross_up
+  params:
+    a: plus_di
+    b: minus_di
+entry:
+  side: long
+  rule: di_cross_up and adx >= 15
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.2
+take_profit_atr_mult: 1.8
+max_holding_bars: 24
+notes: +DI crossing above -DI (directional movement flip), gated by a minimum ADX.

@@ -4,7 +4,7 @@ import pytest
 
 from botfarm.indicators.momentum import rsi, roc, williams_r
 from botfarm.indicators.trend import adx, ema, macd, sma
-from botfarm.indicators.volatility import atr, bollinger_bands, true_range
+from botfarm.indicators.volatility import atr, bollinger_bands, donchian_channels, true_range
 from botfarm.indicators.volume import obv, volume_sma_ratio
 
 
@@ -127,6 +127,16 @@ def test_adx_high_for_strong_uptrend_low_for_chop():
     adx_chop, _, _ = adx(chop_high, chop_low, chop_close, period=14)
     assert adx_chop.iloc[-1] < 20
     assert adx_chop.iloc[-1] < adx_trend.iloc[-1]
+
+
+def test_donchian_channels_excludes_current_bar():
+    high = pd.Series([10, 11, 12, 20, 13], dtype=float)
+    low = pd.Series([8, 9, 9, 9, 9], dtype=float)
+    upper, lower = donchian_channels(high, low, period=3)
+    # At index 3 (value 20 in high), the channel should reflect bars 0..2 only
+    # (shifted), so it must NOT include today's own spike to 20.
+    assert upper.iloc[3] == pytest.approx(12.0)
+    assert lower.iloc[3] == pytest.approx(8.0)
 
 
 def test_atr_positive_and_defined_after_warmup():

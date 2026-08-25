@@ -1,0 +1,15 @@
+id: cp_006_three_bar_higher_lows
+name: Three-Bar Higher Lows
+category: candlestick_pattern
+timeframe: 5min
+indicators: []
+entry:
+  side: long
+  rule: low > prev_low and prev_low > prev2_low and close > open
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.2
+take_profit_atr_mult: 1.8
+max_holding_bars: 24
+notes: A simple ascending-lows continuation pattern over three bars.

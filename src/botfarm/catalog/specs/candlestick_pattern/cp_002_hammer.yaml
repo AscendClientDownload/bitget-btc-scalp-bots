@@ -1,0 +1,17 @@
+id: cp_002_hammer
+name: Hammer / Pin Bar
+category: candlestick_pattern
+timeframe: 5min
+indicators: []
+entry:
+  side: long
+  rule: (close - low) > 0.6 * (high - low) and (open - low) > 0.6 * (high - low) and
+    close >= open
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.3
+take_profit_atr_mult: 2.0
+max_holding_bars: 24
+notes: Small body near the top of the bar's range with a long lower wick -- a single-bar
+  rejection pattern.

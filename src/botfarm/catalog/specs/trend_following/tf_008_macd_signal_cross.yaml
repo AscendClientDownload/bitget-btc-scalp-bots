@@ -1,0 +1,26 @@
+id: tf_008_macd_signal_cross
+name: MACD Signal Line Cross
+category: trend_following
+timeframe: 5min
+indicators:
+- name: macd
+  alias: macd
+  params:
+    fast: 12
+    slow: 26
+    signal: 9
+- name: cross_above
+  alias: macd_cross_up
+  params:
+    a: macd_line
+    b: macd_signal
+entry:
+  side: long
+  rule: macd_cross_up
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.2
+take_profit_atr_mult: 1.8
+max_holding_bars: 24
+notes: MACD line crossing above its signal line.

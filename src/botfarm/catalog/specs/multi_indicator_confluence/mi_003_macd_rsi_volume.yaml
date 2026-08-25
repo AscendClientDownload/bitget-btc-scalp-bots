@@ -1,0 +1,34 @@
+id: mi_003_macd_rsi_volume
+name: MACD Cross + RSI + Volume
+category: multi_indicator_confluence
+timeframe: 5min
+indicators:
+- name: macd
+  alias: macd
+  params:
+    fast: 12
+    slow: 26
+    signal: 9
+- name: cross_above
+  alias: macd_cross_up
+  params:
+    a: macd_line
+    b: macd_signal
+- name: rsi
+  alias: rsi_14
+  params:
+    period: 14
+- name: volume_sma_ratio
+  alias: vol_ratio
+  params:
+    period: 20
+entry:
+  side: long
+  rule: macd_cross_up and rsi_14 > 50 and vol_ratio > 1.1
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.2
+take_profit_atr_mult: 1.8
+max_holding_bars: 24
+notes: MACD signal cross confirmed by RSI momentum and above-average volume.

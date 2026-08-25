@@ -1,0 +1,16 @@
+id: cp_001_bullish_engulfing
+name: Bullish Engulfing
+category: candlestick_pattern
+timeframe: 5min
+indicators: []
+entry:
+  side: long
+  rule: close > open and prev_close < prev_open and close > prev_open and open < prev_close
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.3
+take_profit_atr_mult: 2.0
+max_holding_bars: 24
+notes: Classic two-bar bullish engulfing pattern using only raw OHLC (no indicators
+  needed).

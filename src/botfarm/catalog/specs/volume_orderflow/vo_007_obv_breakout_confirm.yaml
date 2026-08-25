@@ -1,0 +1,32 @@
+id: vo_007_obv_breakout_confirm
+name: OBV Breakout Confirmation (30-bar)
+category: volume_orderflow
+timeframe: 5min
+indicators:
+- name: obv
+  alias: obv
+  params: {}
+- name: sma
+  alias: obv_sma
+  params:
+    period: 30
+    source: obv
+- name: rolling_vwap
+  alias: vwap
+  params:
+    period: 20
+- name: cross_above
+  alias: obv_cross_up
+  params:
+    a: obv
+    b: obv_sma
+entry:
+  side: long
+  rule: obv_cross_up and close > vwap
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.5
+take_profit_atr_mult: 2.4
+max_holding_bars: 24
+notes: OBV trend turn (longer 30-bar average) combined with price above VWAP.

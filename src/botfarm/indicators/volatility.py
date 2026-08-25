@@ -43,3 +43,15 @@ def keltner_channels(
     middle = ema(close, ema_period)
     band = atr(high, low, close, atr_period) * atr_mult
     return middle + band, middle, middle - band
+
+
+def donchian_channels(
+    high: pd.Series, low: pd.Series, period: int = 20
+) -> tuple[pd.Series, pd.Series]:
+    """Returns (upper, lower) — the highest high / lowest low over the prior
+    `period` bars, excluding the current bar (shifted), so a breakout rule
+    like `close > donchian_upper` means "above the range that existed before
+    this bar" rather than trivially including today's own high/low."""
+    upper = high.rolling(window=period, min_periods=period).max().shift(1)
+    lower = low.rolling(window=period, min_periods=period).min().shift(1)
+    return upper, lower

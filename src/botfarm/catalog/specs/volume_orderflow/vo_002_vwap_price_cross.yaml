@@ -1,0 +1,24 @@
+id: vo_002_vwap_price_cross
+name: Price Crosses Above VWAP
+category: volume_orderflow
+timeframe: 5min
+indicators:
+- name: rolling_vwap
+  alias: vwap
+  params:
+    period: 20
+- name: cross_above
+  alias: vwap_cross_up
+  params:
+    a: close
+    b: vwap
+entry:
+  side: long
+  rule: vwap_cross_up
+exit:
+  rule: close < vwap
+atr_period: 14
+stop_loss_atr_mult: 1.3
+take_profit_atr_mult: 2.0
+max_holding_bars: 24
+notes: Close price crossing above its rolling VWAP.

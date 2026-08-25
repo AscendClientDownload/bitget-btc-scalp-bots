@@ -1,0 +1,26 @@
+id: mo_003_stoch_kd_cross
+name: Stochastic %K/%D Cross
+category: momentum_oscillator
+timeframe: 5min
+indicators:
+- name: stochastic
+  alias: stoch
+  params:
+    k_period: 14
+    d_period: 3
+- name: cross_above
+  alias: stoch_kd_cross
+  params:
+    a: stoch_k
+    b: stoch_d
+entry:
+  side: long
+  rule: stoch_kd_cross and stoch_k < 50
+exit:
+  rule: stoch_k > 80
+atr_period: 14
+stop_loss_atr_mult: 1.3
+take_profit_atr_mult: 2.0
+max_holding_bars: 24
+notes: Classic %K crossing above %D, restricted to the lower half of the range (early-momentum
+  entries).

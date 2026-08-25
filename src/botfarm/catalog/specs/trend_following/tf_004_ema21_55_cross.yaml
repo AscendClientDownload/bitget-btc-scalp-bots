@@ -1,0 +1,28 @@
+id: tf_004_ema21_55_cross
+name: EMA 21/55 Cross (slow)
+category: trend_following
+timeframe: 5min
+indicators:
+- name: ema
+  alias: ema_fast
+  params:
+    period: 21
+- name: ema
+  alias: ema_slow
+  params:
+    period: 55
+- name: cross_above
+  alias: ema_cross_up
+  params:
+    a: ema_fast
+    b: ema_slow
+entry:
+  side: long
+  rule: ema_cross_up
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.5
+take_profit_atr_mult: 2.2
+max_holding_bars: 24
+notes: Slow EMA pair aimed at fewer, larger trend moves.

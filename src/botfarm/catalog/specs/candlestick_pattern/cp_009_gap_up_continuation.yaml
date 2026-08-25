@@ -1,0 +1,16 @@
+id: cp_009_gap_up_continuation
+name: Gap-Up Continuation
+category: candlestick_pattern
+timeframe: 5min
+indicators: []
+entry:
+  side: long
+  rule: open > prev_close and close > open
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.4
+take_profit_atr_mult: 2.2
+max_holding_bars: 24
+notes: A bar that opens above the prior close and then continues higher through the
+  bar.

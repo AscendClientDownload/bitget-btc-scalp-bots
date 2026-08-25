@@ -1,0 +1,28 @@
+id: tf_001_ema9_21_cross
+name: EMA 9/21 Cross
+category: trend_following
+timeframe: 5min
+indicators:
+- name: ema
+  alias: ema_fast
+  params:
+    period: 9
+- name: ema
+  alias: ema_slow
+  params:
+    period: 21
+- name: cross_above
+  alias: ema_cross_up
+  params:
+    a: ema_fast
+    b: ema_slow
+entry:
+  side: long
+  rule: ema_cross_up
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.0
+take_profit_atr_mult: 1.5
+max_holding_bars: 24
+notes: Classic fast/slow EMA crossover, the textbook trend-following entry.

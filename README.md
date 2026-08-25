@@ -59,11 +59,34 @@ implementation** of the framework, not a profitable strategy.
   with backtest data (that caused real confusion once during development;
   see `scripts/seed_ledger_from_backtest.py`'s docstring).
 
-## What's paused
+## The 100-strategy catalog
 
-The other 99 strategies (a declarative catalog) and the daily walk-forward
-adaptive re-tuning module are paused. See `docs/ARCHITECTURE.md` for current
-status.
+`STRATEGY_CATALOG.md` has all 100 — 8 categories (trend-following,
+mean-reversion, breakout/volatility, momentum/oscillator, volume/order-flow,
+multi-indicator confluence, candlestick pattern, statistical/z-score), each a
+genuinely distinct rule, not a bare parameter sweep. They're declarative YAML
+specs (`src/botfarm/catalog/specs/`) interpreted at runtime by
+`DeclarativeStrategy` (`src/botfarm/strategy/generic.py`) through a
+**restricted AST-based expression evaluator** (`strategy/safe_eval.py` — no
+`eval()`, no function calls, no attribute access, just a whitelisted set of
+comparison/boolean/arithmetic nodes) — so any spec runs through the exact
+same backtest/live engine as bot #1 without bespoke code per strategy.
+Correctness was cross-checked by reproducing bot #1's exact logic as a
+catalog spec (`mi_001_ema_rsi_volume`) and confirming it produces the
+identical backtest result (-46.58% return) as the original bespoke
+implementation.
+
+**Important**: none of the 100 have been individually backtested for edge —
+only a sample (one per category) was smoke-tested to confirm the engine runs
+them correctly, not that any are profitable. Given bot #1's 15-variant
+finding (see `docs/RISK_DISCLAIMER.md`), assume the same fee-floor problem
+applies here until an actual backtest says otherwise. Regenerate the catalog
+via `python scripts/generate_strategy_catalog.py` (rewrites the YAML specs)
+and `python -c "from botfarm.catalog.generate_catalog_md import main; main()"`
+(rewrites `STRATEGY_CATALOG.md`).
+
+The daily walk-forward adaptive re-tuning module is still paused — see
+`docs/ARCHITECTURE.md` for status.
 
 ## Setup
 
@@ -117,33 +140,29 @@ was tried first but failed with Access Denied in this environment, so the
 Startup folder is the actual mechanism in use. This still requires the PC to
 be on and you logged in; it is not the same as cloud hosting.
 
-### Running it persistently, option B: Railway (no PC dependency)
+### Running it persistently, option B: cloud hosting (no PC dependency) — on hold
 
-The repo is set up to deploy as a single Railway service:
-`scripts/railway_start.py` (wired up via `Procfile`) runs the dashboard in
-the foreground — bound to Railway's injected `$PORT` on `0.0.0.0` via
-`waitress`, a production WSGI server, instead of Flask's dev server — and
-supervises the paper-trading bot as an auto-restarting background process in
-the same container, so they share the container's filesystem for the SQLite
-ledger. Set the `BOTFARM_DB_PATH` environment variable to a path under a
-mounted Railway **Volume** (e.g. `/data/botfarm_ledger.db`) so the ledger
-survives redeploys — without it, the ledger resets every time the service
-redeploys, since container-local disk is ephemeral. See
-`docs/DEPLOY_RAILWAY.md` for the exact click-through steps.
+A Railway deployment was attempted and abandoned: the paper-trading bot ran
+there successfully (volume mounted, ticking correctly every 5 minutes), but
+the dashboard/web process returned a persistent 502 with no diagnosable
+cause after extensive log-level troubleshooting — plausibly a stuck/stale
+deploy not actually picking up the latest pushed commits, never confirmed.
+The Railway-specific files (`Procfile`, `scripts/railway_start.py`,
+`docs/DEPLOY_RAILWAY.md`) have been removed. Two things from that attempt
+are kept because they're generic, not Railway-specific, and will be needed
+again for whatever host comes next: `dashboard.py` binds to `0.0.0.0` on
+whatever `$PORT` is injected (falling back to `127.0.0.1:5000` for local
+dev) and uses `waitress` as a production server when `$PORT` is present;
+`ledger.py`'s `DB_PATH` respects a `BOTFARM_DB_PATH` env var override for
+pointing the SQLite file at a mounted persistent volume.
 
-Railway's GitHub sign-in needs no credit card, and its free trial grants a
-one-time $5 usage credit with no card required to start — but that credit is
-one-time, not renewing monthly, so it will eventually run out (how fast
-depends on actual usage) and continuing past it means adding a card for the
-paid Hobby plan (~$5/mo). Railway services don't sleep on inactivity by
-default (that's an opt-in "Serverless" setting, off unless you turn it on),
-so this doesn't have Render free tier's cold-start problem.
-
-Other options evaluated and why they don't fit (see `docs/ARCHITECTURE.md`):
-Vercel/Cloud Run don't support a persistent background process at all;
-Render's free tier sleeps after 15min idle; Fly.io's free allowance is
-essentially gone; GCP `e2-micro` / Oracle Ampere A1 are genuinely permanent
-free VMs but require a credit card for identity verification during signup.
+Other options evaluated and why they don't fit a free/no-card always-on
+background worker (see `docs/ARCHITECTURE.md`): Vercel/Cloud Run don't
+support a persistent background process at all; Render has no background
+workers on its free tier at all (not just a sleep issue); Koyeb's free tier
+scales to zero on idle; Fly.io's free allowance is essentially gone; GCP
+`e2-micro` / Oracle Ampere A1 are genuinely permanent free VMs but require a
+credit card for identity verification during signup.
 
 ## Data source
 

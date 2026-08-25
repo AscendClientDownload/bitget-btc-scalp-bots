@@ -1,0 +1,27 @@
+id: vo_009_vwap_obv_confluence
+name: VWAP + OBV Confluence
+category: volume_orderflow
+timeframe: 5min
+indicators:
+- name: rolling_vwap
+  alias: vwap
+  params:
+    period: 20
+- name: obv
+  alias: obv
+  params: {}
+- name: sma
+  alias: obv_sma
+  params:
+    period: 20
+    source: obv
+entry:
+  side: long
+  rule: close > vwap and obv > obv_sma
+exit:
+  rule: close < vwap
+atr_period: 14
+stop_loss_atr_mult: 1.4
+take_profit_atr_mult: 2.2
+max_holding_bars: 24
+notes: Two independent volume-based signals (VWAP position, OBV trend) both confirming.

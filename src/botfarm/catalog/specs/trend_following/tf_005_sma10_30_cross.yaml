@@ -1,0 +1,28 @@
+id: tf_005_sma10_30_cross
+name: SMA 10/30 Cross
+category: trend_following
+timeframe: 5min
+indicators:
+- name: sma
+  alias: sma_fast
+  params:
+    period: 10
+- name: sma
+  alias: sma_slow
+  params:
+    period: 30
+- name: cross_above
+  alias: sma_cross_up
+  params:
+    a: sma_fast
+    b: sma_slow
+entry:
+  side: long
+  rule: sma_cross_up
+exit:
+  rule: 'False'
+atr_period: 14
+stop_loss_atr_mult: 1.0
+take_profit_atr_mult: 1.5
+max_holding_bars: 24
+notes: Simple (not exponential) moving average crossover.

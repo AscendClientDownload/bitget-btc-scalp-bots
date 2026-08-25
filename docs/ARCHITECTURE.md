@@ -79,11 +79,32 @@ accident.
    same data isn't evidence of real edge). Bot #1 (`bot01_mean_reversion.py`)
    ships as a reference implementation of the framework, not a profitable
    strategy.
-4. ⏸ **Paused at the user's request**: the 100-strategy catalog (`catalog/`)
-   and `adaptive/` walk-forward re-tuning. Resume when asked — but note the
-   strategy-search finding above: an adaptive re-tuner built on top of these
-   same indicator families would face the same fee-floor problem, not fix it.
-5. ✅ **Persistence**: the runner and dashboard need to survive closing
+4. ✅ **100-strategy catalog, built**: `catalog/schema.py` defines
+   `StrategySpec` (YAML-loaded, validated); `strategy/safe_eval.py` is a
+   restricted AST-walking expression evaluator (whitelisted node types only —
+   no `eval()`, no calls, no attribute/subscript access) for entry/exit rule
+   strings; `strategy/generic.py`'s `DeclarativeStrategy` interprets a spec
+   through an indicator registry covering every indicator in `indicators/`,
+   plus a `cross_above`/`cross_below` special-cased pair for crossover rules
+   (vectorized `.shift()` comparison, since the row-at-a-time rule evaluator
+   can't itself express "crossed" without a precomputed boolean column) and
+   auto-computed helper columns (`prev_open`/`prev_close`/etc., `_atr`) so
+   candlestick-pattern and ATR-stop rules work without per-spec boilerplate.
+   `scripts/generate_strategy_catalog.py` defines and writes all 100 specs
+   (8 categories, each a genuinely distinct rule); `catalog/generate_catalog_md.py`
+   renders `STRATEGY_CATALOG.md` from them. Correctness cross-check: one spec
+   (`mi_001_ema_rsi_volume`) reproduces bot #1's exact original logic and
+   was confirmed to produce an identical backtest result (-46.58% return) to
+   the bespoke `Bot01EmaRsiAtr` implementation. `scripts/smoke_test_catalog.py`
+   runs one spec per category against real cached data to confirm the engine
+   works end-to-end — this is a correctness smoke test, not a real backtest;
+   none of the 100 have been individually backtested for edge (see the
+   strategy-search finding above — assume the same fee-floor problem applies
+   until proven otherwise).
+5. ⏸ **Still paused**: `adaptive/` walk-forward re-tuning. Resume when
+   asked — note it would face the same fee-floor problem the strategy search
+   found, not fix it.
+6. ✅ **Persistence**: the runner and dashboard need to survive closing
    Claude Code / this terminal to be genuinely 24/7. Two mechanisms were
    tried:
    - `Register-ScheduledTask` / `schtasks.exe` (real Windows Task Scheduler)
@@ -103,18 +124,22 @@ accident.
      genuinely-permanent-free VM tiers as of Aug 2026, but both require the
      user to create the cloud account/VM themselves (identity + billing
      verification only they can do) before any remote setup can happen.
-6. ✅ **Railway deployment** (chosen over GCP/Oracle specifically to avoid a
-   credit card requirement, at the cost of not being free forever): the repo
-   now deploys as a single Railway service. `scripts/railway_start.py`
-   (wired via `Procfile`) runs the dashboard in the foreground bound to
-   Railway's `$PORT`/`0.0.0.0` via `waitress` (a production WSGI server —
-   Flask's dev server stays in use for local/no-`PORT` runs only), and
-   supervises the bot as an auto-restarting background process in the same
-   container so both share the container filesystem. `ledger.py`'s `DB_PATH`
-   now respects a `BOTFARM_DB_PATH` env var, meant to point at a Railway
-   Volume mount so the ledger survives redeploys (container disk is
-   otherwise ephemeral). See `docs/DEPLOY_RAILWAY.md` for the click-through
-   steps (only the account/project creation needs the user — everything
-   else is already wired up in code). Railway's free trial is a one-time $5
-   credit, not a renewing free tier, and services don't sleep on inactivity
-   unless the opt-in "Serverless" setting is turned on (leave it off).
+7. ❌ **Railway deployment, attempted and abandoned**: chosen over GCP/Oracle
+   to avoid a credit card requirement. The bot side worked correctly (volume
+   mounted, ticking every 5 minutes, confirmed via deploy logs). The
+   dashboard/web process returned a persistent 502 with no diagnosable cause
+   despite extensive log-level troubleshooting (explicit print diagnostics
+   at every stage of startup showed nothing past the ledger import — most
+   likely a stale/stuck deploy not actually running the latest pushed
+   commits, but this was never confirmed since the user couldn't locate a
+   working "redeploy latest commit" control). `Procfile`,
+   `scripts/railway_start.py`, and `docs/DEPLOY_RAILWAY.md` were removed at
+   the user's request. Kept because they're generic, not Railway-specific:
+   `dashboard.py`'s `$PORT`/`0.0.0.0`/`waitress` handling (falls back to
+   `127.0.0.1:5000` + Flask's dev server with no `$PORT` set) and
+   `ledger.py`'s `BOTFARM_DB_PATH` override for a mounted persistent volume
+   — both needed again for whatever host comes next. A quick survey of
+   alternatives (Render: no background workers on free tier at all; Koyeb:
+   scales to zero on idle; Fly.io: free allowance essentially gone) found
+   nothing else free+simple+truly-always-on either — revisit when the user
+   wants to try hosting again.

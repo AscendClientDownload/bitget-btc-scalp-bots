@@ -1,0 +1,24 @@
+id: mo_006_cci_zero_cross
+name: CCI Crosses Above Zero
+category: momentum_oscillator
+timeframe: 5min
+indicators:
+- name: cci
+  alias: cci
+  params:
+    period: 20
+- name: cross_above
+  alias: cci_cross_up
+  params:
+    a: cci
+    b: 0
+entry:
+  side: long
+  rule: cci_cross_up
+exit:
+  rule: cci < -50
+atr_period: 14
+stop_loss_atr_mult: 1.3
+take_profit_atr_mult: 2.0
+max_holding_bars: 24
+notes: Commodity Channel Index turning positive.
