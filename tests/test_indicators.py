@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from botfarm.indicators.momentum import rsi, roc, williams_r
+from botfarm.indicators.momentum import cci, rsi, roc, williams_r
 from botfarm.indicators.trend import adx, ema, macd, sma
 from botfarm.indicators.volatility import atr, bollinger_bands, donchian_channels, true_range
 from botfarm.indicators.volume import obv, volume_sma_ratio
@@ -127,6 +127,31 @@ def test_adx_high_for_strong_uptrend_low_for_chop():
     adx_chop, _, _ = adx(chop_high, chop_low, chop_close, period=14)
     assert adx_chop.iloc[-1] < 20
     assert adx_chop.iloc[-1] < adx_trend.iloc[-1]
+
+
+def test_cci_runs_on_real_shaped_data_without_error():
+    # This is a regression test: cci() used to crash with
+    # "AttributeError: 'numpy.ndarray' object has no attribute 'abs'" on any
+    # real (non-trivial) input, because its rolling.apply used raw=True
+    # (numpy arrays) but called the pandas-only .abs() method. Only caught
+    # when running the live multi-bot runner against real Bitget data --
+    # no prior test exercised this function at all.
+    rng = np.random.default_rng(3)
+    n = 60
+    close = pd.Series(100 + np.cumsum(rng.normal(0, 0.5, n)))
+    high = close + rng.uniform(0.1, 0.5, n)
+    low = close - rng.uniform(0.1, 0.5, n)
+    result = cci(high, low, close, period=20)
+    assert result.iloc[:19].isna().all()
+    assert result.iloc[19:].notna().all()
+
+
+def test_cci_zero_for_perfectly_flat_series():
+    # Mean deviation is 0 for a constant series, so CCI should show as NaN
+    # (guarded by the replace(0, nan) denominator) rather than raising.
+    close = pd.Series([100.0] * 30)
+    result = cci(close, close, close, period=20)
+    assert result.iloc[19:].isna().all()
 
 
 def test_donchian_channels_excludes_current_bar():

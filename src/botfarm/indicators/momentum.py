@@ -1,6 +1,7 @@
 """Momentum/oscillator indicators: RSI, Stochastic, ROC, Williams %R, CCI."""
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from .trend import sma
@@ -45,6 +46,6 @@ def cci(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 20) -> 
     typical_price = (high + low + close) / 3
     tp_sma = sma(typical_price, period)
     mean_dev = typical_price.rolling(window=period, min_periods=period).apply(
-        lambda x: (x - x.mean()).abs().mean(), raw=True
+        lambda x: np.abs(x - x.mean()).mean(), raw=True
     )
     return (typical_price - tp_sma) / (0.015 * mean_dev.replace(0, float("nan")))

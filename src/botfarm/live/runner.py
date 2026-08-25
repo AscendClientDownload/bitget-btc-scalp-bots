@@ -30,17 +30,17 @@ def _now_ms() -> int:
     return int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 
 
-def run_tick(
+def _process_tick(
     strategy: Strategy,
-    exchange: ExchangeClient,
+    df,
     broker: PaperBroker,
     db_path=None,
 ) -> None:
-    df = exchange.get_recent_candles(SYMBOL, strategy.timeframe, LOOKBACK_BARS)
-    if len(df) < LOOKBACK_BARS // 2:
-        logger.warning("only got %d candles, skipping tick", len(df))
-        return
-
+    """Core per-strategy tick logic against an already-fetched candle
+    DataFrame. Split out from run_tick so run_tick_multi can fetch candles
+    ONCE per timeframe and reuse them across every strategy sharing that
+    timeframe, instead of each of N strategies independently re-fetching
+    identical data from Bitget every tick."""
     full_df = strategy.compute_indicators(df) if hasattr(strategy, "compute_indicators") else df
     last_i = len(full_df) - 1
     ts_ms = int(full_df.iloc[last_i]["ts_ms"])
@@ -135,15 +135,57 @@ def run_tick(
         candle_time = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).isoformat()
         if still_open is not None:
             logger.info(
-                "tick ok: candle=%s close=%.2f status=IN_POSITION entry=%.2f stop=%.2f target=%.2f capital=$%.2f",
-                candle_time, close_price, still_open["entry_price"], still_open["stop_loss"],
+                "tick ok [%s]: candle=%s close=%.2f status=IN_POSITION entry=%.2f stop=%.2f target=%.2f capital=$%.2f",
+                strategy.id, candle_time, close_price, still_open["entry_price"], still_open["stop_loss"],
                 still_open["take_profit"], capital,
             )
         else:
             logger.info(
-                "tick ok: candle=%s close=%.2f status=FLAT (watching, no entry signal) capital=$%.2f",
-                candle_time, close_price, capital,
+                "tick ok [%s]: candle=%s close=%.2f status=FLAT (watching, no entry signal) capital=$%.2f",
+                strategy.id, candle_time, close_price, capital,
             )
+
+
+def run_tick(
+    strategy: Strategy,
+    exchange: ExchangeClient,
+    broker: PaperBroker,
+    db_path=None,
+) -> None:
+    """Single-strategy tick: fetches its own candles. Kept for the
+    single-bot entrypoint (run_forever); run_tick_multi is the
+    shared-fetch path used when running many strategies together."""
+    df = exchange.get_recent_candles(SYMBOL, strategy.timeframe, LOOKBACK_BARS)
+    if len(df) < LOOKBACK_BARS // 2:
+        logger.warning("only got %d candles, skipping tick", len(df))
+        return
+    _process_tick(strategy, df, broker, db_path)
+
+
+def run_tick_multi(
+    strategies: list[Strategy],
+    exchange: ExchangeClient,
+    broker: PaperBroker,
+    db_path=None,
+) -> None:
+    """Runs a tick for many strategies, fetching candles once per distinct
+    timeframe and reusing that data across every strategy on it -- so 100
+    strategies on the same symbol/timeframe cost 1 API call, not 100. One
+    strategy raising doesn't stop the rest of the batch."""
+    by_timeframe: dict[str, list[Strategy]] = {}
+    for s in strategies:
+        by_timeframe.setdefault(s.timeframe, []).append(s)
+
+    for timeframe, group in by_timeframe.items():
+        df = exchange.get_recent_candles(SYMBOL, timeframe, LOOKBACK_BARS)
+        if len(df) < LOOKBACK_BARS // 2:
+            logger.warning("only got %d candles for %s, skipping %d strategies", len(df), timeframe, len(group))
+            continue
+        for strategy in group:
+            try:
+                _process_tick(strategy, df, broker, db_path)
+            except Exception:
+                logger.exception("tick failed for strategy %s -- skipping, rest of batch continues", strategy.id)
 
 
 def run_forever(strategy: Strategy, cost_model: CostModel | None = None) -> None:
@@ -165,4 +207,43 @@ def run_forever(strategy: Strategy, cost_model: CostModel | None = None) -> None
         coalesce=True,
     )
     logger.info("starting paper-trading runner for %s on %s timeframe", strategy.id, strategy.timeframe)
+    scheduler.start()
+
+
+def run_forever_multi(strategies: list[Strategy], cost_model: CostModel | None = None) -> None:
+    """Runs many strategies (e.g. bot01 + the full 100-strategy catalog) in
+    one process, sharing candle fetches per timeframe. One cron job per
+    distinct timeframe among the strategies (in practice: one, since
+    everything in the catalog is 5min today)."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    ledger.init_db()
+
+    exchange = BitgetPublicExchangeClient()
+    broker = PaperBroker(cost_model)
+
+    by_timeframe: dict[str, list[Strategy]] = {}
+    for s in strategies:
+        by_timeframe.setdefault(s.timeframe, []).append(s)
+
+    logger.info(
+        "starting multi-bot paper-trading runner: %d strategies across timeframes %s",
+        len(strategies), list(by_timeframe.keys()),
+    )
+
+    # Run one tick immediately so the dashboard populates now instead of
+    # waiting up to 5 minutes for the first scheduled fire.
+    for timeframe, group in by_timeframe.items():
+        run_tick_multi(group, exchange, broker)
+
+    scheduler = BlockingScheduler(timezone="UTC")
+    for timeframe, group in by_timeframe.items():
+        minute_step = 5 if timeframe == "5min" else 1
+        scheduler.add_job(
+            run_tick_multi,
+            trigger=CronTrigger(minute=f"*/{minute_step}", second=10),
+            args=[group, exchange, broker],
+            id=f"tick_all_{timeframe}",
+            max_instances=1,
+            coalesce=True,
+        )
     scheduler.start()
