@@ -39,11 +39,15 @@
   .badge.time_stop { background: #3a3520; color: #eab308; }
   .badge.signal { background: #2a2035; color: #c084fc; }
 
-  .bot-box { background: #14161b; border: 1px solid #2a2e37; border-radius: 10px; padding: 14px 16px; min-width: 220px; }
+  .bot-box { background: #14161b; border: 1px solid #2a2e37; border-radius: 10px; padding: 14px 16px; min-width: 220px; cursor: pointer; transition: border-color 0.15s; }
+  .bot-box:hover { border-color: #4a5568; }
+  .bot-box.selected { border-color: #7cc4ff; box-shadow: 0 0 0 1px #7cc4ff; }
   .bot-box .name { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
   .bot-box .status { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-bottom: 10px; }
   .bot-box .status.idle { background: #23262e; color: #9aa0a6; }
   .bot-box .status.in-position { background: #1e3a5f; color: #7cc4ff; }
+  .bot-box .pnl-line { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+  .filter-note { color: #7cc4ff; font-size: 12px; margin-bottom: 10px; cursor: pointer; }
   .more-note { color: #6b7078; font-size: 12px; margin-top: 8px; }
   .updated { color: #6b7078; font-size: 11px; margin-top: 8px; }
 </style>
@@ -58,6 +62,8 @@
   <h2>Bots</h2>
   <div class="grid" id="bots"></div>
 </section>
+
+<div class="filter-note" id="filter-note" style="display:none"></div>
 
 <section>
   <h2>Open positions</h2>
@@ -74,9 +80,12 @@
 
 <script>
 const CLOSED_TRADES_SHOWN = 60;
+let selectedBot = null; // click a bot card to filter open/closed trades to just that bot
 
 function fmtPct(v) { return (v === null || v === undefined) ? "—" : (v * 100).toFixed(3) + "%"; }
+function fmtSignedPct(v) { return (v === null || v === undefined) ? "—" : (v >= 0 ? "+" : "") + (v * 100).toFixed(3) + "%"; }
 function fmtMoney(v) { return (v === null || v === undefined) ? "—" : "$" + Number(v).toLocaleString(undefined, {maximumFractionDigits: 2}); }
+function fmtSignedMoney(v) { return (v === null || v === undefined) ? "—" : (v >= 0 ? "+$" : "-$") + Math.abs(v).toLocaleString(undefined, {maximumFractionDigits: 2}); }
 function fmtTime(ms) { return ms ? new Date(ms).toLocaleString() : "—"; }
 function durMin(a, b) { return a && b ? ((b - a) / 60000).toFixed(1) + " min" : "—"; }
 
@@ -89,15 +98,27 @@ async function refresh() {
   ]);
   renderSummary(summary);
   renderBots(botStates, openTrades);
-  renderOpen(openTrades);
-  renderClosed(closedTrades);
+  renderFilterNote();
+  renderOpen(selectedBot ? openTrades.filter(t => t.strategy_id === selectedBot) : openTrades);
+  renderClosed(selectedBot ? closedTrades.filter(t => t.strategy_id === selectedBot) : closedTrades);
   document.getElementById("updated").textContent = "Last updated " + new Date().toLocaleTimeString();
 }
 
+function renderFilterNote() {
+  const el = document.getElementById("filter-note");
+  if (selectedBot) {
+    el.style.display = "block";
+    el.textContent = `Showing trades for ${selectedBot} only — click it again, or click here, to show all bots.`;
+    el.onclick = () => { selectedBot = null; refresh(); };
+  } else {
+    el.style.display = "none";
+  }
+}
+
 function renderSummary(s) {
-  const pnlClass = s.total_pnl_pct > 0 ? "pos" : (s.total_pnl_pct < 0 ? "neg" : "");
+  const pnlClass = s.total_pnl_dollars > 0 ? "pos" : (s.total_pnl_dollars < 0 ? "neg" : "");
   const stats = [
-    ["Total P&L", s.total_pnl_pct.toFixed(2) + "%", pnlClass],
+    ["Total P&L", fmtSignedMoney(s.total_pnl_dollars) + "  (" + s.total_pnl_pct.toFixed(2) + "%)", pnlClass],
     ["Win rate", s.win_rate_pct.toFixed(1) + "%", ""],
     ["Profit factor", isFinite(s.profit_factor) ? s.profit_factor.toFixed(2) : "∞", ""],
     ["Closed trades", s.num_closed_trades, ""],
@@ -120,32 +141,53 @@ function renderBots(botStates, openTrades) {
 
   el.innerHTML = botStates.map(b => {
     const inPos = openByBot[b.strategy_id];
-    return `<div class="bot-box">
+    const pnlClass = b.pnl_dollars > 0 ? "pos" : (b.pnl_dollars < 0 ? "neg" : "");
+    const isSelected = selectedBot === b.strategy_id;
+    return `<div class="bot-box ${isSelected ? 'selected' : ''}" data-bot="${b.strategy_id}">
       <div class="name">${b.strategy_id}</div>
       <div class="status ${inPos ? 'in-position' : 'idle'}">${inPos ? 'In position' : 'Idle — watching'}</div>
+      <div class="pnl-line value ${pnlClass}">${fmtSignedMoney(b.pnl_dollars)} <span style="font-size:13px;font-weight:500;color:#9aa0a6">(${b.pnl_pct >= 0 ? '+' : ''}${b.pnl_pct.toFixed(2)}%)</span></div>
       <div class="card-rows">
         <div class="row"><span>Symbol</span><span>${b.symbol}</span></div>
         <div class="row"><span>Timeframe</span><span>${b.timeframe}</span></div>
-        <div class="row"><span>Capital</span><span>${fmtMoney(b.capital)}</span></div>
+        <div class="row"><span>Started with</span><span>${fmtMoney(b.starting_capital)}</span></div>
+        <div class="row"><span>Now</span><span>${fmtMoney(b.capital)}</span></div>
         <div class="row"><span>Updated</span><span>${fmtTime(b.updated_at_ms)}</span></div>
       </div>
     </div>`;
   }).join("");
+
+  el.querySelectorAll(".bot-box").forEach(box => {
+    box.addEventListener("click", () => {
+      const bot = box.dataset.bot;
+      selectedBot = (selectedBot === bot) ? null : bot;
+      refresh();
+    });
+  });
 }
 
 function renderOpen(trades) {
   const el = document.getElementById("open-trades");
   if (!trades.length) { el.innerHTML = '<div class="empty">No open positions right now.</div>'; return; }
-  el.innerHTML = trades.map(t => `<div class="card open">
-    <div class="card-top"><span class="card-bot">${t.strategy_id}</span><span class="badge open">open</span></div>
+  el.innerHTML = trades.map(t => {
+    const hasLive = t.unrealized_pnl_dollars !== null && t.unrealized_pnl_dollars !== undefined;
+    const pnlClass = hasLive ? (t.unrealized_pnl_dollars >= 0 ? "pos" : "neg") : "";
+    return `<div class="card open">
+    <div class="card-top">
+      <span class="card-bot">${t.strategy_id}</span>
+      <span class="card-pnl ${pnlClass}">${hasLive ? fmtSignedMoney(t.unrealized_pnl_dollars) : ''}</span>
+    </div>
     <div class="card-rows">
+      <div class="row"><span>Status</span><span class="badge open">open — unrealized</span></div>
       <div class="row"><span>Symbol</span><span>${t.symbol}</span></div>
       <div class="row"><span>Entry time</span><span>${fmtTime(t.entry_ts_ms)}</span></div>
       <div class="row"><span>Entry price</span><span>${fmtMoney(t.entry_price)}</span></div>
+      <div class="row"><span>Current price</span><span>${fmtMoney(t.current_price)}</span></div>
       <div class="row"><span>Stop / Target</span><span>${fmtMoney(t.stop_loss)} / ${fmtMoney(t.take_profit)}</span></div>
       <div class="row"><span>Shares</span><span>${Number(t.shares).toFixed(6)}</span></div>
     </div>
-  </div>`).join("");
+  </div>`;
+  }).join("");
 }
 
 function renderClosed(trades) {
@@ -162,9 +204,10 @@ function renderClosed(trades) {
     return `<div class="card ${win ? 'win' : 'loss'}">
       <div class="card-top">
         <span class="card-bot">${t.strategy_id}</span>
-        <span class="card-pnl ${win ? 'pos' : 'neg'}">${fmtPct(t.return_pct)}</span>
+        <span class="card-pnl ${win ? 'pos' : 'neg'}">${fmtSignedMoney(t.realized_pnl_dollars)}</span>
       </div>
       <div class="card-rows">
+        <div class="row"><span>Return</span><span>${fmtSignedPct(t.return_pct)}</span></div>
         <div class="row"><span>Exit reason</span><span class="badge ${t.exit_reason}">${(t.exit_reason || "").replace("_"," ")}</span></div>
         <div class="row"><span>Entry</span><span>${fmtMoney(t.entry_price)} @ ${fmtTime(t.entry_ts_ms)}</span></div>
         <div class="row"><span>Exit</span><span>${fmtMoney(t.exit_price)} @ ${fmtTime(t.exit_ts_ms)}</span></div>
