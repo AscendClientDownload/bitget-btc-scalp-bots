@@ -36,7 +36,7 @@ def main(days: int, position_fraction: float) -> None:
     strategy = Bot01EmaRsiAtr()
     full_df = strategy.compute_indicators(df)
 
-    result = run_backtest(strategy, full_df, starting_capital=10_000.0, position_fraction=position_fraction)
+    result = run_backtest(strategy, full_df, starting_capital=1_000.0, position_fraction=position_fraction)
     print(f"Trades: {len(result.trades)}  Ending capital: {result.ending_capital:.2f}")
 
     metrics = write_report(

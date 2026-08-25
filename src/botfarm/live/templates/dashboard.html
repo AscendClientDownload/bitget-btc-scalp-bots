@@ -5,6 +5,7 @@
 <title>botfarm — paper trading dashboard</title>
 <style>
   :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
   body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #0f1115; color: #e6e6e6; margin: 0; padding: 24px; }
   h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
   .subtitle { color: #9aa0a6; font-size: 13px; margin-bottom: 20px; }
@@ -14,54 +15,80 @@
   .stat .value { font-size: 20px; font-weight: 600; margin-top: 4px; }
   .value.pos { color: #4ade80; }
   .value.neg { color: #f87171; }
-  section { margin-bottom: 28px; }
+  section { margin-bottom: 32px; }
   h2 { font-size: 14px; font-weight: 600; margin: 0 0 10px; color: #cfd3da; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; background: #14161b; border: 1px solid #2a2e37; border-radius: 8px; overflow: hidden; }
-  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #22252c; white-space: nowrap; }
-  th { background: #1a1d24; color: #9aa0a6; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
-  tr:last-child td { border-bottom: none; }
-  .empty { color: #6b7078; padding: 16px; font-size: 13px; }
+  .empty { color: #6b7078; padding: 16px; font-size: 13px; background: #14161b; border: 1px dashed #2a2e37; border-radius: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+
+  .card { background: #14161b; border: 1px solid #2a2e37; border-radius: 10px; padding: 14px 16px; }
+  .card.win { border-left: 3px solid #4ade80; }
+  .card.loss { border-left: 3px solid #f87171; }
+  .card.open { border-left: 3px solid #7cc4ff; }
+  .card-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .card-bot { font-weight: 600; font-size: 13px; }
+  .card-pnl { font-size: 16px; font-weight: 700; }
+  .card-pnl.pos { color: #4ade80; }
+  .card-pnl.neg { color: #f87171; }
+  .card-rows { font-size: 12px; color: #b8bcc4; display: flex; flex-direction: column; gap: 4px; }
+  .card-rows .row { display: flex; justify-content: space-between; gap: 8px; }
+  .card-rows .row span:first-child { color: #7d828b; }
   .badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
   .badge.open { background: #1e3a5f; color: #7cc4ff; }
   .badge.stop_loss { background: #4a1e1e; color: #f87171; }
   .badge.take_profit { background: #1e4a2a; color: #4ade80; }
   .badge.time_stop { background: #3a3520; color: #eab308; }
   .badge.signal { background: #2a2035; color: #c084fc; }
+
+  .bot-box { background: #14161b; border: 1px solid #2a2e37; border-radius: 10px; padding: 14px 16px; min-width: 220px; }
+  .bot-box .name { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .bot-box .status { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-bottom: 10px; }
+  .bot-box .status.idle { background: #23262e; color: #9aa0a6; }
+  .bot-box .status.in-position { background: #1e3a5f; color: #7cc4ff; }
+  .more-note { color: #6b7078; font-size: 12px; margin-top: 8px; }
   .updated { color: #6b7078; font-size: 11px; margin-top: 8px; }
 </style>
 </head>
 <body>
 <h1>botfarm — paper trading dashboard</h1>
-<div class="subtitle">Local only · simulated fills · no real orders placed</div>
+<div class="subtitle">Local only · simulated fills, no real orders placed · refreshes every 5s</div>
 
 <div class="summary" id="summary"></div>
 
 <section>
-  <h2>Open positions</h2>
-  <div id="open-trades"></div>
+  <h2>Bots</h2>
+  <div class="grid" id="bots"></div>
 </section>
 
 <section>
-  <h2>Closed trades (most recent 500)</h2>
-  <div id="closed-trades"></div>
+  <h2>Open positions</h2>
+  <div class="grid" id="open-trades"></div>
+</section>
+
+<section>
+  <h2>Closed trades</h2>
+  <div class="grid" id="closed-trades"></div>
+  <div class="more-note" id="closed-more"></div>
 </section>
 
 <div class="updated" id="updated"></div>
 
 <script>
+const CLOSED_TRADES_SHOWN = 60;
+
 function fmtPct(v) { return (v === null || v === undefined) ? "—" : (v * 100).toFixed(3) + "%"; }
-function fmtPct2(v) { return (v === null || v === undefined) ? "—" : v.toFixed(2) + "%"; }
-function fmtPrice(v) { return (v === null || v === undefined) ? "—" : "$" + Number(v).toLocaleString(undefined, {maximumFractionDigits: 2}); }
+function fmtMoney(v) { return (v === null || v === undefined) ? "—" : "$" + Number(v).toLocaleString(undefined, {maximumFractionDigits: 2}); }
 function fmtTime(ms) { return ms ? new Date(ms).toLocaleString() : "—"; }
-function durMin(a, b) { return a && b ? ((b - a) / 60000).toFixed(1) + "m" : "—"; }
+function durMin(a, b) { return a && b ? ((b - a) / 60000).toFixed(1) + " min" : "—"; }
 
 async function refresh() {
-  const [summary, openTrades, closedTrades] = await Promise.all([
+  const [summary, botStates, openTrades, closedTrades] = await Promise.all([
     fetch("/api/summary").then(r => r.json()),
+    fetch("/api/strategies").then(r => r.json()),
     fetch("/api/trades/open").then(r => r.json()),
     fetch("/api/trades/closed").then(r => r.json()),
   ]);
   renderSummary(summary);
+  renderBots(botStates, openTrades);
   renderOpen(openTrades);
   renderClosed(closedTrades);
   document.getElementById("updated").textContent = "Last updated " + new Date().toLocaleTimeString();
@@ -82,33 +109,73 @@ function renderSummary(s) {
   ).join("");
 }
 
+function renderBots(botStates, openTrades) {
+  const el = document.getElementById("bots");
+  if (!botStates.length) {
+    el.innerHTML = '<div class="empty">No bots have started trading yet. Start scripts/run_paper_trading.py to begin.</div>';
+    return;
+  }
+  const openByBot = {};
+  openTrades.forEach(t => { openByBot[t.strategy_id] = t; });
+
+  el.innerHTML = botStates.map(b => {
+    const inPos = openByBot[b.strategy_id];
+    return `<div class="bot-box">
+      <div class="name">${b.strategy_id}</div>
+      <div class="status ${inPos ? 'in-position' : 'idle'}">${inPos ? 'In position' : 'Idle — watching'}</div>
+      <div class="card-rows">
+        <div class="row"><span>Symbol</span><span>${b.symbol}</span></div>
+        <div class="row"><span>Timeframe</span><span>${b.timeframe}</span></div>
+        <div class="row"><span>Capital</span><span>${fmtMoney(b.capital)}</span></div>
+        <div class="row"><span>Updated</span><span>${fmtTime(b.updated_at_ms)}</span></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
 function renderOpen(trades) {
   const el = document.getElementById("open-trades");
-  if (!trades.length) { el.innerHTML = '<div class="empty">No open positions.</div>'; return; }
-  el.innerHTML = `<table><thead><tr>
-    <th>Bot</th><th>Symbol</th><th>Entry time</th><th>Entry price</th>
-    <th>Stop</th><th>Target</th><th>Shares</th>
-  </tr></thead><tbody>${trades.map(t => `<tr>
-    <td>${t.strategy_id}</td><td>${t.symbol}</td><td>${fmtTime(t.entry_ts_ms)}</td>
-    <td>${fmtPrice(t.entry_price)}</td><td>${fmtPrice(t.stop_loss)}</td>
-    <td>${fmtPrice(t.take_profit)}</td><td>${Number(t.shares).toFixed(6)}</td>
-  </tr>`).join("")}</tbody></table>`;
+  if (!trades.length) { el.innerHTML = '<div class="empty">No open positions right now.</div>'; return; }
+  el.innerHTML = trades.map(t => `<div class="card open">
+    <div class="card-top"><span class="card-bot">${t.strategy_id}</span><span class="badge open">open</span></div>
+    <div class="card-rows">
+      <div class="row"><span>Symbol</span><span>${t.symbol}</span></div>
+      <div class="row"><span>Entry time</span><span>${fmtTime(t.entry_ts_ms)}</span></div>
+      <div class="row"><span>Entry price</span><span>${fmtMoney(t.entry_price)}</span></div>
+      <div class="row"><span>Stop / Target</span><span>${fmtMoney(t.stop_loss)} / ${fmtMoney(t.take_profit)}</span></div>
+      <div class="row"><span>Shares</span><span>${Number(t.shares).toFixed(6)}</span></div>
+    </div>
+  </div>`).join("");
 }
 
 function renderClosed(trades) {
   const el = document.getElementById("closed-trades");
-  if (!trades.length) { el.innerHTML = '<div class="empty">No closed trades yet.</div>'; return; }
-  el.innerHTML = `<table><thead><tr>
-    <th>Bot</th><th>Symbol</th><th>Entry time</th><th>Exit time</th><th>Duration</th>
-    <th>Entry</th><th>Exit</th><th>Reason</th><th>P&L</th><th>Fees</th>
-  </tr></thead><tbody>${trades.map(t => `<tr>
-    <td>${t.strategy_id}</td><td>${t.symbol}</td><td>${fmtTime(t.entry_ts_ms)}</td>
-    <td>${fmtTime(t.exit_ts_ms)}</td><td>${durMin(t.entry_ts_ms, t.exit_ts_ms)}</td>
-    <td>${fmtPrice(t.entry_price)}</td><td>${fmtPrice(t.exit_price)}</td>
-    <td><span class="badge ${t.exit_reason}">${(t.exit_reason || "").replace("_"," ")}</span></td>
-    <td class="${t.return_pct > 0 ? 'pos' : 'neg'}" style="color:${t.return_pct > 0 ? '#4ade80' : '#f87171'}">${fmtPct(t.return_pct)}</td>
-    <td>${fmtPrice(t.fees_paid)}</td>
-  </tr>`).join("")}</tbody></table>`;
+  const noteEl = document.getElementById("closed-more");
+  if (!trades.length) {
+    el.innerHTML = '<div class="empty">No closed trades yet — this bot hasn\'t taken (or finished) a trade since it started.</div>';
+    noteEl.textContent = "";
+    return;
+  }
+  const shown = trades.slice(0, CLOSED_TRADES_SHOWN);
+  el.innerHTML = shown.map(t => {
+    const win = t.return_pct > 0;
+    return `<div class="card ${win ? 'win' : 'loss'}">
+      <div class="card-top">
+        <span class="card-bot">${t.strategy_id}</span>
+        <span class="card-pnl ${win ? 'pos' : 'neg'}">${fmtPct(t.return_pct)}</span>
+      </div>
+      <div class="card-rows">
+        <div class="row"><span>Exit reason</span><span class="badge ${t.exit_reason}">${(t.exit_reason || "").replace("_"," ")}</span></div>
+        <div class="row"><span>Entry</span><span>${fmtMoney(t.entry_price)} @ ${fmtTime(t.entry_ts_ms)}</span></div>
+        <div class="row"><span>Exit</span><span>${fmtMoney(t.exit_price)} @ ${fmtTime(t.exit_ts_ms)}</span></div>
+        <div class="row"><span>Duration</span><span>${durMin(t.entry_ts_ms, t.exit_ts_ms)}</span></div>
+        <div class="row"><span>Fees</span><span>${fmtMoney(t.fees_paid)}</span></div>
+      </div>
+    </div>`;
+  }).join("");
+  noteEl.textContent = trades.length > CLOSED_TRADES_SHOWN
+    ? `Showing the ${CLOSED_TRADES_SHOWN} most recent of ${trades.length} closed trades.`
+    : "";
 }
 
 refresh();

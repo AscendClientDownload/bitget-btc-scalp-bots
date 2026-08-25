@@ -3,8 +3,8 @@
 - **Symbol**: BTCUSDT
 - **Timeframe**: 5min
 - **Date range**: 2025-08-25 to 2026-08-25
-- **Starting capital**: 10,000.00
-- **Ending capital**: 5,342.12
+- **Starting capital**: 1,000.00
+- **Ending capital**: 534.22
 
 ## Metrics
 

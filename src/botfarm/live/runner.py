@@ -23,7 +23,7 @@ logger = logging.getLogger("botfarm.live.runner")
 
 SYMBOL = "BTCUSDT"
 LOOKBACK_BARS = 200  # enough for the slowest indicator warmup (e.g. EMA21, RSI14, ATR14)
-DEFAULT_STARTING_CAPITAL = 10_000.0
+DEFAULT_STARTING_CAPITAL = 1_000.0
 
 
 def _now_ms() -> int:
