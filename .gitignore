@@ -7,3 +7,4 @@ data/raw/*.csv.gz
 *.db
 *.db-journal
 .DS_Store
+logs/*.log

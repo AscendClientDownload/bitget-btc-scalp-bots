@@ -83,3 +83,23 @@ accident.
    and `adaptive/` walk-forward re-tuning. Resume when asked — but note the
    strategy-search finding above: an adaptive re-tuner built on top of these
    same indicator families would face the same fee-floor problem, not fix it.
+5. ✅ **Persistence**: the runner and dashboard need to survive closing
+   Claude Code / this terminal to be genuinely 24/7. Two mechanisms were
+   tried:
+   - `Register-ScheduledTask` / `schtasks.exe` (real Windows Task Scheduler)
+     — **failed with Access Denied** in this environment even with the
+     sandbox restriction lifted; not just an admin-rights issue, something
+     about this session's account can't touch Task Scheduler at all.
+   - **Windows Startup folder** (`shell:startup`) — works with a normal file
+     write, no elevated permissions needed. A `.vbs` launcher there
+     (`BotFarmAutostart.vbs`, outside the repo — it's machine config, not
+     project code) runs both `scripts/service/run_*_forever.ps1` wrapper
+     scripts hidden at every logon. Each wrapper loops forever, restarting
+     the underlying Python process if it crashes, logging to `logs/`.
+   - **Caveat this doesn't solve**: the PC still needs to be on and the user
+     logged in. True always-on-regardless-of-PC needs a cloud host — no free
+     option is both real (persistent, not scale-to-zero like Vercel/Cloud
+     Run) and simple; GCP's `e2-micro` and Oracle's Ampere A1 are the two
+     genuinely-permanent-free VM tiers as of Aug 2026, but both require the
+     user to create the cloud account/VM themselves (identity + billing
+     verification only they can do) before any remote setup can happen.

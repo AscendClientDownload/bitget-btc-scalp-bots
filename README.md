@@ -107,6 +107,21 @@ Both are **simulated** — `live/exchange_client.py` only reads public market
 data, and `live/paper_broker.py` simulates fills using the same cost model
 as the backtester. No exchange account credentials are used or needed.
 
+### Running it persistently (survives closing the terminal)
+
+`scripts/service/run_paper_trading_forever.ps1` and `run_dashboard_forever.ps1`
+wrap each process in an auto-restart loop and log to `logs/`. A launcher at
+`shell:startup` (`BotFarmAutostart.vbs`, machine-local, not part of this repo)
+runs both hidden at every Windows logon — real Task Scheduler registration
+was tried first but failed with Access Denied in this environment, so the
+Startup folder is the actual mechanism in use. This still requires the PC to
+be on and you logged in; it is not the same as cloud hosting. See
+`docs/ARCHITECTURE.md` for what was evaluated (Vercel/Cloud Run don't work —
+no persistent background process; Render/Fly.io/Railway free tiers are gone
+or unsuited to an always-on worker; GCP `e2-micro` / Oracle Ampere A1 are the
+two real permanent-free VM options but need you to create the cloud account
+yourself first).
+
 ## Data source
 
 [Bitget](https://www.bitget.com)'s public spot market-data REST API
