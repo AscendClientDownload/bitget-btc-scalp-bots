@@ -130,6 +130,21 @@ def run_tick(
         )
         ledger.record_equity(conn, strategy.id, ts_ms, capital + unrealized)
 
+        # Heartbeat: proves each tick actually ran and evaluated the strategy,
+        # even on ticks where nothing happened (no signal, still watching).
+        candle_time = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).isoformat()
+        if still_open is not None:
+            logger.info(
+                "tick ok: candle=%s close=%.2f status=IN_POSITION entry=%.2f stop=%.2f target=%.2f capital=$%.2f",
+                candle_time, close_price, still_open["entry_price"], still_open["stop_loss"],
+                still_open["take_profit"], capital,
+            )
+        else:
+            logger.info(
+                "tick ok: candle=%s close=%.2f status=FLAT (watching, no entry signal) capital=$%.2f",
+                candle_time, close_price, capital,
+            )
+
 
 def run_forever(strategy: Strategy, cost_model: CostModel | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

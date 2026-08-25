@@ -87,6 +87,13 @@ function fmtSignedPct(v) { return (v === null || v === undefined) ? "—" : (v >
 function fmtMoney(v) { return (v === null || v === undefined) ? "—" : "$" + Number(v).toLocaleString(undefined, {maximumFractionDigits: 2}); }
 function fmtSignedMoney(v) { return (v === null || v === undefined) ? "—" : (v >= 0 ? "+$" : "-$") + Math.abs(v).toLocaleString(undefined, {maximumFractionDigits: 2}); }
 function fmtTime(ms) { return ms ? new Date(ms).toLocaleString() : "—"; }
+function fmtAgo(ms) {
+  if (!ms) return "—";
+  const secs = Math.round((Date.now() - ms) / 1000);
+  if (secs < 5) return "just now";
+  if (secs < 90) return secs + "s ago";
+  return Math.round(secs / 60) + "m ago";
+}
 function durMin(a, b) { return a && b ? ((b - a) / 60000).toFixed(1) + " min" : "—"; }
 
 async function refresh() {
@@ -152,7 +159,8 @@ function renderBots(botStates, openTrades) {
         <div class="row"><span>Timeframe</span><span>${b.timeframe}</span></div>
         <div class="row"><span>Started with</span><span>${fmtMoney(b.starting_capital)}</span></div>
         <div class="row"><span>Now</span><span>${fmtMoney(b.capital)}</span></div>
-        <div class="row"><span>Updated</span><span>${fmtTime(b.updated_at_ms)}</span></div>
+        <div class="row"><span>Last checked</span><span title="${fmtTime(b.updated_at_ms)}">${fmtAgo(b.updated_at_ms)}</span></div>
+        <div class="row"><span></span><span style="color:#6b7078;font-size:11px">checks every ${b.timeframe} — up to ~5m gaps are normal</span></div>
       </div>
     </div>`;
   }).join("");
